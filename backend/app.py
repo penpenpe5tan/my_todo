@@ -1,37 +1,55 @@
 from flask import Flask, jsonify, request
+from flask_mysqldb import MySQL
 from flask_cors import CORS
 
+
+from config import * #設定ファイルの名前
+conf = config() #設定ファイルから読み込み
+
 app = Flask(__name__)
+app.config['DEBUG'] = conf.debug
 CORS(app)
 
-# 簡単なデータベース代わりに使うリスト
-todos = [
-    {"id": 1, "title": "Flaskを学ぶ", "completed": False},
-    {"id": 2, "title": "Next.jsを学ぶ", "completed": False},
-]
+# MySQLデータベース設定
+app.config['MYSQL_HOST'] = conf.host
+app.config['MYSQL_USER'] = conf.user
+app.config['MYSQL_PASSWORD'] = conf.password
+app.config['MYSQL_DB'] = conf.db
+mysql = MySQL(app)
 
-@app.route('/todos', methods=['GET', 'POST'])
-def manage_todos():
-    if request.method == 'GET':
-        return jsonify(todos)
-    else:  # POST
-        data = request.json
-        todos.append({"id": len(todos) + 1, "title": data['title'], "completed": False})
-        return jsonify(todos[-1]), 201
 
-@app.route('/todos/<int:todo_id>', methods=['PUT', 'DELETE'])
+    
+@app.route('/todos', methods=['GET'])
+def get_todos():
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT * FROM todos")
+    rv = cur.fetchall()
+    todos = [{'id': row[0], 'title': row[1], 'completed': row[2]} for row in rv]
+    cur.close()
+    return jsonify(todos)
+
+@app.route('/todos', methods=['POST'])
+def add_todo():
+    data = request.json
+    cur = mysql.connection.cursor()
+    cur.execute("INSERT INTO todos (title, completed) VALUES (%s, %s)", (data['title'], False))
+    mysql.connection.commit()
+    cur.close()
+    return jsonify({'title': data['title'], 'completed': False})
+
+@app.route('/todos/<int:todo_id>', methods=['PUT'])
 def update_todo(todo_id):
-    todo = next((item for item in todos if item["id"] == todo_id), None)
-    if not todo:
-        return jsonify({"error": "Todo not found"}), 404
+    data = request.json
+    cur = mysql.connection.cursor()
+    cur.execute("UPDATE todos SET title = %s, completed = %s WHERE id = %s", (data['title'], data['completed'], todo_id))
+    mysql.connection.commit()
+    cur.close()
+    return jsonify({'id': todo_id, 'title': data['title'], 'completed': data['completed']})
 
-    if request.method == 'PUT':
-        data = request.json
-        todo.update(data)
-        return jsonify(todo)
-    else:  # DELETE
-        todos.remove(todo)
-        return jsonify({"message": "Todo deleted"}), 200
-
-if __name__ == '__main__':
-    app.run(debug=True)
+@app.route('/todos/<int:todo_id>', methods=['DELETE'])
+def delete_todo(todo_id):
+    cur = mysql.connection.cursor()
+    cur.execute("DELETE FROM todos WHERE id = %s", (todo_id,))
+    mysql.connection.commit()
+    cur.close()
+    return jsonify({'message': 'Todo deleted'})

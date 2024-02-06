@@ -27,12 +27,12 @@ export default function Home() {
   };
 
   const fetchTodos = async () => {
-    const response = await axios.get('http://127.0.0.1:5000/todos');
+    const response = await axios.get('http://localhost:5000/todos');
     setTodos(response.data); // 状態を更新してUIをリフレッシュ
   };
   
   const updateTodo = async (todoId, title) => {
-    await axios.put(`http://127.0.0.1:5000/todos/${todoId}`, { title: editText, completed: false });
+    await axios.put(`http://localhost:5000/todos/${todoId}`, { title: editText, completed: false });
     // ToDoリストを再取得またはローカルで状態を更新してUIを更新
     fetchTodos();
     setEditingId(null);
@@ -40,7 +40,7 @@ export default function Home() {
   };
   
   const deleteTodo = async (todoId) => {
-    await axios.delete(`http://127.0.0.1:5000/todos/${todoId}`);
+    await axios.delete(`http://localhost:5000/todos/${todoId}`);
     fetchTodos(); // ToDoリストを再取得
   };
   
